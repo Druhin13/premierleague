@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Premier League API Documentation</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Prism.js for Syntax Highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
+    <style>
+        body {
+            padding-top: 120px;
+            padding-bottom: 120px;
+            background-color: #f8f9fa;
+        }
+
+        .endpoint {
+            margin-bottom: 40px;
+        }
+
+        .autocomplete-results {
+            position: absolute;
+            background: white;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            width: 100%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 0 0 0.25rem 0.25rem;
+        }
+
+        .autocomplete-item {
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .autocomplete-item:hover {
+            background-color: #e9ecef;
+        }
+
+        .generated-url a {
+            word-break: break-all;
+        }
+
+        pre {
+            background-color: #f1f1f1;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .position-relative {
+            position: relative;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Premier League API</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/swagger/">Swagger</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/">Django Admin Panel</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <div class="text-center mb-5">
+            <h1>Premier League API Documentation</h1>
+            <p class="lead">
+                Explore and interact with the Django-based RESTful web application providing statistical insights into
+                English Premier League (EPL) matches
+            </p>
+        </div>
+
+        <!-- Endpoints Accordion -->
+        <div class="accordion" id="endpointsAccordion">
+            {% for endpoint in endpoints %}
+            {% if endpoint.name|lower != "swagger documentation" %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading{{ forloop.counter }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapse{{ forloop.counter }}" aria-expanded="false"
+                        aria-controls="collapse{{ forloop.counter }}">
+                        {{ endpoint.name }}
+                    </button>
+                </h2>
+                <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse"
+                    aria-labelledby="heading{{ forloop.counter }}" data-bs-parent="#endpointsAccordion">
+                    <div class="accordion-body">
+                        <p><strong>Description:</strong> {{ endpoint.description }}</p>
+                        <p>
+                            <strong>HTTP Method:</strong>
+                            <span class="badge bg-primary">{{ endpoint.method }}</span>
+                        </p>
+                        <p>
+                            <strong>Endpoint URL:</strong>
+                            <code>{{ endpoint.url }}</code>
+                        </p>
+
+                        {% if endpoint.parameters %}
+                        {% if endpoint.method == 'GET' %}
+                        <h5>Parameters:</h5>
+                        <ul class="list-group mb-3">
+                            {% for param in endpoint.parameters %}
+                            <li class="list-group-item">
+                                <strong>{{ param.name }}</strong>
+                                <span class="badge bg-secondary">{{ param.type }}</span>
+                                {% if param.required %}
+                                <span class="badge bg-danger">Required</span>
+                                {% else %}
+                                <span class="badge bg-warning">Optional</span>
+                                {% endif %}
+                                <p>{{ param.description }}</p>
+                            </li>
+                            {% endfor %}
+                        </ul>
+
+                        <h5>Usage Example:</h5>
+                        <pre><code class="language-http">{{ endpoint.sample_request }}</code></pre>
+
+                        <h5>Sample Response:</h5>
+                        <pre><code class="language-json">{{ endpoint.sample_response }}</code></pre>
+
+                        <hr />
+
+                        <h5>Generate URL:</h5>
+
+                        <form class="row g-3">
+                            {% for param in endpoint.parameters %}
+                            <div class="col-md-6 position-relative mb-3">
+                                <label for="{{ param.name }}-{{ forloop.counter }}" class="form-label">
+                                    {{ param.name }}{% if param.required %} <span
+                                        class="text-danger">*</span>{% endif %}
+                                </label>
+
+                                {% if param.name == 'date' %}
+                                <input type="date" class="form-control" id="{{ param.name }}-{{ forloop.counter }}"
+                                    name="{{ param.name }}" {% if min_date_str %}min="{{ min_date_str }}" {% endif %}
+                                    {% if max_date_str %}max="{{ max_date_str }}" {% endif %} />
+                                {% elif param.name == 'team1' or param.name == 'team2' or param.name == 'referee' %}
+                                <!-- Text input with autocomplete for teams or referees -->
+                                <input type="text" class="form-control" id="{{ param.name }}-{{ forloop.counter }}"
+                                    name="{{ param.name }}" placeholder="Enter {{ param.name }}"
+                                    oninput="fetchSuggestions(this, '{{ param.name }}')"
+                                    data-endpoint="{% if param.name == 'team1' or param.name == 'team2' %}/api/teams/search/{% elif param.name == 'referee' %}/api/referees/search/{% endif %}"
+                                    autocomplete="off" />
+                                <div class="autocomplete-results"
+                                    id="{{ param.name }}-{{ forloop.counter }}-autocomplete"></div>
+                                {% else %}
+                                <!-- Plain text input for limit -->
+                                <input type="text" class="form-control" id="{{ param.name }}-{{ forloop.counter }}"
+                                    name="{{ param.name }}" placeholder="Enter {{ param.name }}" />
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+
+                            <div class="col-12">
+                                <button type="button" class="btn btn-success"
+                                    onclick="generateUrl('{{ endpoint.url }}', this)">
+                                    Generate URL
+                                </button>
+                            </div>
+                        </form>
+                        <div class="generated-url mt-3"></div>
+                        {% elif endpoint.method == 'POST' %}
+                        <h5>Create a New Match</h5>
+                        <form id="add-match-form-{{ forloop.counter }}">
+                            <div class="mb-3">
+                                <label for="date-{{ forloop.counter }}" class="form-label">Date <span
+                                        class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="date-{{ forloop.counter }}" name="date"
+                                    required>
+                            </div>
+                            <div class="mb-3 position-relative">
+                                <label for="home_team-{{ forloop.counter }}" class="form-label">Home Team <span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="home_team-{{ forloop.counter }}"
+                                    name="home_team" placeholder="Enter home team"
+                                    oninput="fetchSuggestions(this, 'home_team')" data-endpoint="/api/teams/search/"
+                                    autocomplete="off" required>
+                                <div class="autocomplete-results" id="home_team-{{ forloop.counter }}-autocomplete">
+                                </div>
+                            </div>
+                            <div class="mb-3 position-relative">
+                                <label for="away_team-{{ forloop.counter }}" class="form-label">Away Team <span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="away_team-{{ forloop.counter }}"
+                                    name="away_team" placeholder="Enter away team"
+                                    oninput="fetchSuggestions(this, 'away_team')" data-endpoint="/api/teams/search/"
+                                    autocomplete="off" required>
+                                <div class="autocomplete-results" id="away_team-{{ forloop.counter }}-autocomplete">
+                                </div>
+                            </div>
+                            <div class="mb-3 position-relative">
+                                <label for="referee-{{ forloop.counter }}" class="form-label">Referee <span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="referee-{{ forloop.counter }}"
+                                    name="referee" placeholder="Enter referee"
+                                    oninput="fetchSuggestions(this, 'referee')" data-endpoint="/api/referees/search/"
+                                    autocomplete="off" required>
+                                <div class="autocomplete-results" id="referee-{{ forloop.counter }}-autocomplete"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="full_time_result-{{ forloop.counter }}" class="form-label">Full-Time Result
+                                    <span class="text-danger">*</span></label>
+                                <select class="form-select" id="full_time_result-{{ forloop.counter }}"
+                                    name="full_time_result" required>
+                                    <option value="">Select result</option>
+                                    <option value="H">Home Win</option>
+                                    <option value="A">Away Win</option>
+                                    <option value="D">Draw</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="half_time_result-{{ forloop.counter }}" class="form-label">Half-Time
+                                    Result</label>
+                                <select class="form-select" id="half_time_result-{{ forloop.counter }}"
+                                    name="half_time_result">
+                                    <option value="">Select result</option>
+                                    <option value="H">Home Leading</option>
+                                    <option value="A">Away Leading</option>
+                                    <option value="D">Draw</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="home_goals-{{ forloop.counter }}" class="form-label">Home Goals <span
+                                        class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="home_goals-{{ forloop.counter }}"
+                                    name="home_goals" min="0" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="away_goals-{{ forloop.counter }}" class="form-label">Away Goals <span
+                                        class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="away_goals-{{ forloop.counter }}"
+                                    name="away_goals" min="0" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="home_yellow_cards-{{ forloop.counter }}" class="form-label">Home Yellow
+                                    Cards</label>
+                                <input type="number" class="form-control" id="home_yellow_cards-{{ forloop.counter }}"
+                                    name="home_yellow_cards" min="0">
+                            </div>
+                            <div class="mb-3">
+                                <label for="away_yellow_cards-{{ forloop.counter }}" class="form-label">Away Yellow
+                                    Cards</label>
+                                <input type="number" class="form-control" id="away_yellow_cards-{{ forloop.counter }}"
+                                    name="away_yellow_cards" min="0">
+                            </div>
+                            <div class="mb-3">
+                                <label for="home_red_cards-{{ forloop.counter }}" class="form-label">Home Red
+                                    Cards</label>
+                                <input type="number" class="form-control" id="home_red_cards-{{ forloop.counter }}"
+                                    name="home_red_cards" min="0">
+                            </div>
+                            <div class="mb-3">
+                                <label for="away_red_cards-{{ forloop.counter }}" class="form-label">Away Red
+                                    Cards</label>
+                                <input type="number" class="form-control" id="away_red_cards-{{ forloop.counter }}"
+                                    name="away_red_cards" min="0">
+                            </div>
+                            <div class="mb-3 position-relative">
+                                <label for="season-{{ forloop.counter }}" class="form-label">Season <span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="season-{{ forloop.counter }}" name="season"
+                                    placeholder="Enter season (e.g., 2024/2025)"
+                                    oninput="fetchSuggestions(this, 'season')" data-endpoint="/api/season/search/"
+                                    autocomplete="off" required>
+                                <div class="autocomplete-results" id="season-{{ forloop.counter }}-autocomplete"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="season_start_date-{{ forloop.counter }}" class="form-label">Season Start
+                                    Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="season_start_date-{{ forloop.counter }}"
+                                    name="season_start_date" placeholder="Enter season start date">
+                            </div>
+                            <div class="mb-3">
+                                <label for="season_end_date-{{ forloop.counter }}" class="form-label">Season End Date
+                                    <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="season_end_date-{{ forloop.counter }}"
+                                    name="season_end_date" placeholder="Enter season end date">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Create Match</button>
+                        </form>
+                        <div id="add-match-response-{{ forloop.counter }}" class="mt-3"></div>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        <!-- Application Details -->
+        <div class="mt-5">
+            <p class="lead text-center">
+                Application Details
+            </p>
+            <div class="card">
+                <div class="card-body">
+                    <p><strong>Python Version:</strong> 3.9.6</p>
+                    <p><strong>Django Version:</strong> 4.x</p>
+                    <p>
+                        <strong>Packages Used:</strong>
+                        Django, Django REST Framework, drf-spectacular, drf-yasg, fuzzywuzzy, rapidfuzz, numpy, pandas,
+                        Bootstrap
+                    </p>
+                    <p>
+                        <strong>Admin Credentials:</strong>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th>Username</th>
+                                <td>druhin</td>
+                            </tr>
+                            <tr>
+                                <th>Password</th>
+                                <td>qwerty123</td>
+                            </tr>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS and dependencies (Popper / floating-ui) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Prism.js for Syntax Highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-http.min.js"></script>
+
+    <script>
+        function fetchSuggestions(input, fieldName, trigger = 'input') {
+            const endpoint = input.getAttribute('data-endpoint');
+            if (!endpoint) return; // No autocomplete if endpoint is undefined
+
+            let query = input.value.trim();
+
+            // If triggered by focus or click, and the input is empty, set a default query
+            if ((trigger === 'focus' || trigger === 'click') && query.length === 0) {
+                query = '';
+            }
+
+            const uniqueId = input.id.split('-').pop();
+            const resultsContainer = document.getElementById(`${fieldName}-${uniqueId}-autocomplete`);
+
+            // If user cleared the input, clear suggestions
+            if (query.length < 1) {
+                resultsContainer.innerHTML = '';
+                return;
+            }
+
+            // Debounce to prevent excessive API calls
+            if (input.debounceTimeout) {
+                clearTimeout(input.debounceTimeout);
+            }
+
+            input.debounceTimeout = setTimeout(() => {
+                fetch(`${endpoint}?search=${encodeURIComponent(query)}`)
+                    .then((response) => response.json())
+                    .then((data) => {
+                        const suggestions = data.results || [];
+                        resultsContainer.innerHTML = '';
+
+                        if (suggestions.length === 0) {
+                            resultsContainer.innerHTML =
+                                '<div class="autocomplete-item">No results found</div>';
+                            return;
+                        }
+
+                        suggestions.forEach((suggestion) => {
+                            const div = document.createElement('div');
+                            div.classList.add('autocomplete-item');
+                            div.textContent = suggestion;
+                            div.onclick = () => {
+                                input.value = suggestion;
+                                resultsContainer.innerHTML = '';
+                            };
+                            resultsContainer.appendChild(div);
+                        });
+                    })
+                    .catch((error) => {
+                        console.error('Error fetching suggestions:', error);
+                        resultsContainer.innerHTML =
+                            '<div class="autocomplete-item">Error fetching suggestions</div>';
+                    });
+            }, 300);
+        }
+
+        function generateUrl(urlTemplate, button) {
+            const form = button.closest('form');
+            let generatedUrl = urlTemplate;
+
+            form.querySelectorAll('input').forEach((input) => {
+                let value = input.value.trim();
+                const placeholder = `<${input.name}>`;
+
+                // If this is a date field, convert from yyyy-mm-dd to dd/mm/yyyy
+                if (input.type === 'date' && value) {
+                    const parts = value.split('-'); // [YYYY, MM, DD]
+                    if (parts.length === 3) {
+                        value = `${parts[2]}/${parts[1]}/${parts[0]}`; // dd/mm/yyyy
+                    }
+                }
+
+                generatedUrl = generatedUrl.replace(placeholder, encodeURIComponent(value));
+            });
+
+            const urlDisplay = form.nextElementSibling;
+
+            // If placeholders remain, some required fields are empty
+            if (generatedUrl.includes('<') || generatedUrl.includes('>')) {
+                urlDisplay.innerHTML = `
+                    <div class="alert alert-warning">
+                        Please fill in all required fields.
+                    </div>
+                `;
+                return;
+            }
+
+            // Display the final generated URL
+            urlDisplay.innerHTML = `
+                <div class="alert alert-success">
+                    Generated URL:
+                    <a href="${generatedUrl}" target="_blank">${generatedUrl}</a>
+                </div>
+            `;
+        }
+
+        // Function to get CSRF token from cookies
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Handle autocomplete inputs
+            const autocompleteInputs = document.querySelectorAll('input[data-endpoint]');
+            autocompleteInputs.forEach((input) => {
+                input.addEventListener('focus', () => {
+                    fetchSuggestions(input, input.name, 'focus');
+                });
+                input.addEventListener('click', () => {
+                    fetchSuggestions(input, input.name, 'click');
+                });
+            });
+
+            // Handle Add Match forms
+            const addMatchForms = document.querySelectorAll('form[id^="add-match-form-"]');
+            addMatchForms.forEach(form => {
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    const formId = this.getAttribute('id');
+                    const counter = formId.split('-').pop();
+                    const responseDiv = document.getElementById(
+                        `add-match-response-${counter}`);
+
+                    const formData = new FormData(this);
+                    const data = {};
+                    formData.forEach((value, key) => {
+                        if (value !== '') {
+                            data[key] = value;
+                        }
+                    });
+
+
+
+                    fetch('/api/add-match/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCookie('csrftoken'), // CSRF token
+                            },
+                            body: JSON.stringify(data)
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(errData => {
+                                    throw errData;
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            responseDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                Match created successfully! ID: ${data.id}
+                            </div>
+                        `;
+                            form.reset();
+                        })
+                        .catch(error => {
+                            let errorMessage = '';
+                            if (typeof error === 'object') {
+                                for (const key in error) {
+                                    if (error.hasOwnProperty(key)) {
+                                        errorMessage +=
+                                            `${key}: ${error[key].join(', ')}<br>`;
+                                    }
+                                }
+                            } else {
+                                errorMessage = 'An unexpected error occurred.';
+                            }
+                            responseDiv.innerHTML = `
+                            <div class="alert alert-danger">
+                                Error: ${errorMessage}
+                            </div>
+                        `;
+                        });
+                });
+            });
+
+            // Accordion button click handler
+            document.querySelectorAll('.accordion-button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth',
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1 @@
+web: gunicorn premier_league_project.wsgi
